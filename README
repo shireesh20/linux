@@ -16,3 +16,19 @@ several of them using the Restructured Text markup notation.
 Please read the Documentation/process/changes.rst file, as it contains the
 requirements for building and running the kernel, and information about
 the problems which may result by upgrading your kernel.
+
+
+Using cmpe283-1.c, we can discover additional features about VMX. 
+
+For the below MSRs, added the functionality to see their features.
+IA32_VMX_PINBASED_CTLS 0x481  
+IA32_VMX_PROCBASED_CTLS 0x482 
+IA32_VMX_PROCBASED_CTLS2 0x48B 
+IA32_VMX_EXIT_CTLS 0x483   
+IA32_VMX_ENTRY_CTLS 0x484  
+IA32_VMX_PROCBASED_CTLS3  
+
+Detailed information can be viewed at https://github.com/upasanakr/CMPE-283-VirtualTechnologies_Assignment-1  
+
+
+Using vmx.c and cpuid.c, added additional functionalities in CPUID instruction based on %eax value. Entire detailed information can be viewed at https://github.com/upasanakr/CMPE-283-VirtualTechnologies_Assignment-2and3
