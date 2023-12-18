@@ -6407,6 +6407,19 @@ static int __vmx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 	u32 vectoring_info = vmx->idt_vectoring_info;
 	u16 exit_handler_index;
 
+	//Using external variable to keep count of number of exits
+	extern u32 total_exits; 
+	total_exits++;
+
+	//Using external array to keep count of number of exits for each ecx
+	extern u32 total_exits_array[76];
+	
+	u32 exit_reason_index = vmx->exit_reason.basic;
+    	
+	//General range of ecx is 0 to 75 according to SDM
+	if (exit_reason_index < 76) {
+        	total_exits_array[exit_reason_index]++;
+    	}
 	/*
 	 * Flush logged GPAs PML buffer, this will make dirty_bitmap more
 	 * updated. Another good is, in kvm_vm_ioctl_get_dirty_log, before
@@ -6581,8 +6594,28 @@ unexpected_vmexit:
 
 static int vmx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 {
-	int ret = __vmx_handle_exit(vcpu, exit_fastpath);
 
+	//Declaring start time, time diff variables
+	u64 start_time, time_diff;
+	
+	//Declaring total time variable that will be used in cpuid.c
+	extern u64 total_time_exits, total_time_exits_array[76];
+	
+
+	//Capture start time
+	start_time = rdtsc();
+	int ret = __vmx_handle_exit(vcpu, exit_fastpath);
+	//Capture time diff after exit is handled
+	time_diff = rdtsc() - start_time;
+	//Update total time exit
+	total_time_exits+=time_diff;
+	
+	//Update total time exit array
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	u32 exit_reason_index = vmx->exit_reason.basic;
+        if (exit_reason_index < 76) {
+                total_time_exits_array[exit_reason_index]+=time_diff;
+        }
 	/*
 	 * Exit to user space when bus lock detected to inform that there is
 	 * a bus lock in guest.

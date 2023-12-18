@@ -1558,20 +1558,78 @@ bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
 }
 EXPORT_SYMBOL_GPL(kvm_cpuid);
 
+u32 total_exits;
+EXPORT_SYMBOL(total_exits);
+
+u64 total_time_exits;
+EXPORT_SYMBOL(total_time_exits);
+
+u32 total_exits_array[76] = {0};
+EXPORT_SYMBOL(total_exits_array);
+
+u64 total_time_exits_array[76] = {0};
+EXPORT_SYMBOL(total_time_exits_array);
+
 int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 {
-	u32 eax, ebx, ecx, edx;
+        u32 eax, ebx, ecx, edx;
 
-	if (cpuid_fault_enabled(vcpu) && !kvm_require_cpl(vcpu, 0))
-		return 1;
+        printk(KERN_INFO "kvm_emulate_cpuid: entering function\n");
+        if (cpuid_fault_enabled(vcpu) && !kvm_require_cpl(vcpu, 0))
+                return 1;
 
-	eax = kvm_rax_read(vcpu);
-	ecx = kvm_rcx_read(vcpu);
-	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, false);
-	kvm_rax_write(vcpu, eax);
-	kvm_rbx_write(vcpu, ebx);
-	kvm_rcx_write(vcpu, ecx);
-	kvm_rdx_write(vcpu, edx);
-	return kvm_skip_emulated_instruction(vcpu);
+        eax = kvm_rax_read(vcpu);
+        ecx = kvm_rcx_read(vcpu);
+        printk(KERN_INFO "kvm_emulate_cpuid: eax=0x%x, ecx=0x%x\n", eax, ecx);
+        if(eax == 0x4FFFFFFF){
+                eax = total_exits;
+                printk(KERN_INFO "CPUID(0x4FFFFFFF), total number of exits is %u\n", total_exits);
+        }
+	else if(eax == 0x4FFFFFFE){
+		u64 time_diff;
+		time_diff = total_time_exits;
+		ebx = (time_diff >> 32);
+		ecx = (time_diff & 0xFFFFFFFF);
+		printk(KERN_INFO "CPUID(0x4FFFFFFE), total time in cycles is %lld, ebx=%u, ecx=%u\n", time_diff, ebx, ecx);
+
+	}
+	else if(eax == 0x4FFFFFFD){
+		//These ecx values are undefined according to SDM
+		if(ecx < 0 || ecx > 75 || ecx == 35 || ecx == 38 || ecx == 42 || ecx == 71){
+			eax = 0;
+			ebx = 0;
+			ecx = 0;
+			edx = 0xFFFFFFFF;
+		}
+		else{
+			eax = total_exits_array[ecx];
+			printk(KERN_INFO "CPUID(0x4FFFFFFD), total number of exits for exit type %u is %u\n", ecx, total_exits_array[ecx]);
+		}
+	}
+	else if(eax == 0x4FFFFFFC){
+		if(ecx < 0 || ecx > 75 || ecx == 35 || ecx == 38 || ecx == 42 || ecx == 71){
+                        eax = 0;
+                        ebx = 0;
+                        ecx = 0;
+                        edx = 0xFFFFFFFF;
+                }
+		else{
+			u64 time_diff;
+                	time_diff = total_time_exits_array[ecx];
+			u32 prev_ecx = ecx;
+                	ebx = (time_diff >> 32);
+                	ecx = (time_diff & 0xFFFFFFFF);
+                	printk(KERN_INFO "CPUID(0x4FFFFFFC), total time in cycles for exit type %u is %lld, ebx=%u, ecx=%u\n", prev_ecx, time_diff, ebx, ecx);
+		}
+	} 
+        else{
+                kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, false);
+        }
+        printk(KERN_INFO "kvm_emulate_cpuid: eax=0x%x, ebx=0x%x, ecx=0x%x, edx=0x%x\n", eax, ebx, ecx, edx);
+        kvm_rax_write(vcpu, eax);
+        kvm_rbx_write(vcpu, ebx);
+        kvm_rcx_write(vcpu, ecx);
+        kvm_rdx_write(vcpu, edx);
+        return kvm_skip_emulated_instruction(vcpu);
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_cpuid);
